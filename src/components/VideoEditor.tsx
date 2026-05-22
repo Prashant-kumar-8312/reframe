@@ -16,11 +16,12 @@ import ExportSettings from "./ExportSettings";
 import ExportOverlay from "./ExportOverlay";
 import DownloadResult from "./DownloadResult";
 import ImageOverlay from "./ImageOverlay"
+import KeyboardShortcutPanel from "./KeyboardShortcutPanel";
 
 import { cn } from "@/lib/utils";
 import {
   Layers, Crop, Scissors, RotateCw, Volume2,
-  SlidersHorizontal, Zap, AlertTriangle, Github, Copy
+  SlidersHorizontal, Zap, AlertTriangle, Copy, HelpCircle
 } from "lucide-react";
 import OnboardingTour from "./OnboardingTour";
 
@@ -49,66 +50,6 @@ function Section({ icon, title, children, delay = 0 }: SectionProps) {
   );
 }
 
-/** Inline keyboard hint badge. */
-function Kbd({ children }: { children: React.ReactNode }) {
-  return (
-    <kbd className="inline-flex items-center justify-center min-w-[1.5rem] px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--bg)] text-[10px] font-mono text-[var(--muted)] leading-none">
-      {children}
-    </kbd>
-  );
-}
-
-/** Collapsible panel that lists all keyboard shortcuts. */
-function KeyboardShortcutsPanel() {
-  const [open, setOpen] = useState(false);
-
-  const shortcuts: { keys: React.ReactNode[]; label: string }[] = [
-    { keys: [<Kbd key="m">M</Kbd>], label: "Toggle audio mute" },
-    { keys: [<Kbd key="ctrl">Ctrl</Kbd>, <span key="plus" className="text-[var(--muted)] text-xs">+</span>, <Kbd key="enter">↵</Kbd>], label: "Export video" },
-  ];
-
-  return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] animate-fade-in overflow-hidden">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls="keyboard-shortcuts-list"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--border)] transition-colors duration-150"
-      >
-        <span className="text-[10px] font-heading font-bold uppercase tracking-widest text-[var(--muted)] flex items-center gap-2">
-          <Kbd>⌨</Kbd>
-          Keyboard Shortcuts
-        </span>
-        <svg
-          aria-hidden="true"
-          width="12"
-          height="12"
-          viewBox="0 0 12 12"
-          fill="none"
-          className={cn("text-[var(--muted)] transition-transform duration-200", open && "rotate-180")}
-        >
-          <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {open && (
-        <ul
-          id="keyboard-shortcuts-list"
-          className="px-4 pb-3 space-y-2 border-t border-[var(--border)]"
-        >
-          {shortcuts.map(({ keys, label }) => (
-            <li key={label} className="flex items-center justify-between gap-3 pt-2">
-              <span className="text-xs text-[var(--muted)]">{label}</span>
-              <span className="flex items-center gap-1 shrink-0">{keys}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-
 export default function VideoEditor() {
   const {
     file, duration, recipe, status, progress,
@@ -120,6 +61,7 @@ export default function VideoEditor() {
     overlayPosition, setOverlayPosition,
     overlaySize, setOverlaySize,
     overlayOpacity, setOverlayOpacity,
+    isShortcutPanelOpen, closeShortcutPanel, toggleShortcutPanel,
     recommendedPreset,
     toggleSound,
   } = useVideoEditor();
@@ -161,6 +103,7 @@ export default function VideoEditor() {
   return (
     <div className="min-h-screen relative flex flex-col" style={{ background: "var(--bg)" }}>
       <ExportOverlay status={status} progress={progress} onCancel={cancelExport} />
+      <KeyboardShortcutPanel open={isShortcutPanelOpen} onClose={closeShortcutPanel} />
       <OnboardingTour />
 
       <div aria-live="polite" aria-atomic="true" className="sr-only">
@@ -171,7 +114,7 @@ export default function VideoEditor() {
 
       <div className="max-w-6xl mx-auto px-4 py-8 pb-6 flex-1 w-full">
 
-        <header className="mb-10 flex items-end justify-between animate-fade-in">
+        <header className="mb-10 flex items-end justify-between gap-4 animate-fade-in">
           <div
             className="inline-block px-5 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm border-l-4 border-l-film-600"
             aria-label="Reframe — video editor"
@@ -183,9 +126,29 @@ export default function VideoEditor() {
               Your video, any format
             </p>
           </div>
-          <div className="hidden sm:flex items-center gap-2 text-sm font-heading font-semibold uppercase tracking-widest text-[var(--muted)] pb-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block animate-pulse" />
-            No login. No ads. 100% private - your video never leaves your device.
+          <div className="flex flex-col items-end gap-3 pb-1">
+            <div className="hidden sm:flex items-center gap-2 text-sm font-heading font-semibold uppercase tracking-widest text-[var(--muted)] text-right">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block animate-pulse" />
+              No login. No ads. 100% private - your video never leaves your device.
+            </div>
+            <button
+              type="button"
+              onClick={toggleShortcutPanel}
+              aria-expanded={isShortcutPanelOpen}
+              aria-controls="keyboard-shortcut-panel"
+              aria-label={isShortcutPanelOpen ? "Close keyboard shortcuts" : "Open keyboard shortcuts"}
+              title="Keyboard shortcuts"
+              className={cn(
+                "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-heading font-bold uppercase tracking-widest transition-colors",
+                isShortcutPanelOpen
+                  ? "border-film-600 bg-film-600 text-white shadow-sm"
+                  : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)] hover:bg-[var(--border)] hover:text-[var(--text)]"
+              )}
+            >
+              <HelpCircle size={14} />
+              <span className="hidden sm:inline">Shortcuts</span>
+              <span className="sm:hidden">?</span>
+            </button>
           </div>
         </header>
 
@@ -433,9 +396,6 @@ export default function VideoEditor() {
                 </button>
               </div>
             </div>
-
-            <KeyboardShortcutsPanel />
-
             <button
               id="export-button"
               type="button"

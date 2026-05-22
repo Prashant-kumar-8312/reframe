@@ -115,6 +115,17 @@ function validateRecipe(recipe: EditRecipe, duration: number ): string | null {
   );
 }
 
+function isEditableShortcutTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+
+  return (
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT" ||
+    target.isContentEditable
+  );
+}
+
 export function useVideoEditor() {
   const [file, setFile] = useState<File | null>(null);
   const [duration, setDuration] = useState<number>(0);
@@ -147,6 +158,7 @@ export function useVideoEditor() {
   const [overlayPosition, setOverlayPosition] = useState<OverlayPosition>("bottom-right");
   const [overlaySize, setOverlaySize] = useState(150);
   const [overlayOpacity, setOverlayOpacity] = useState(100);
+  const [isShortcutPanelOpen, setIsShortcutPanelOpen] = useState(false);
 
  const updateRecipe = useCallback((patch: Partial<EditRecipe>) => {
   setRecipe((prev) => {
@@ -495,6 +507,10 @@ export function useVideoEditor() {
   
   useEffect(() => {
     const handleKeydown = (e: KeyboardEvent) => {
+      if (isEditableShortcutTarget(e.target)) {
+        return;
+      }
+
       if (
         (e.ctrlKey || e.metaKey) &&
         e.key === "Enter" &&
@@ -502,7 +518,14 @@ export function useVideoEditor() {
         status !== "loading-engine" &&
         status !== "exporting"
       ) {
+        e.preventDefault();
         handleExport();
+        return;
+      }
+
+      if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+        e.preventDefault();
+        setIsShortcutPanelOpen((open) => !open);
       }
     };
 
@@ -602,6 +625,18 @@ export function useVideoEditor() {
   updateRecipe({ soundOnCompletion: !recipe.soundOnCompletion });
 }, [recipe.soundOnCompletion, updateRecipe]);
 
+  const openShortcutPanel = useCallback(() => {
+    setIsShortcutPanelOpen(true);
+  }, []);
+
+  const closeShortcutPanel = useCallback(() => {
+    setIsShortcutPanelOpen(false);
+  }, []);
+
+  const toggleShortcutPanel = useCallback(() => {
+    setIsShortcutPanelOpen((open) => !open);
+  }, []);
+
   return {
     file,
     duration,
@@ -635,6 +670,10 @@ export function useVideoEditor() {
     setOverlaySize,
     overlayOpacity,
     setOverlayOpacity,
+    isShortcutPanelOpen,
+    openShortcutPanel,
+    closeShortcutPanel,
+    toggleShortcutPanel,
     recommendedPreset,
     toggleSound,
   };
