@@ -7,6 +7,12 @@ import LottiePlayer from "./LottiePlayer";
 import spinnerAnim from "@/lib/lottie/spinner.json";
 import TipCarousel from "./TipCarousel";
 
+const exportSteps = [
+  { label: "Loading", status: "loading-engine" as const },
+  { label: "Exporting", status: "exporting" as const },
+  { label: "Done", status: "done" as const },
+];
+
 interface Props {
   status: ExportStatus;
   progress: number;
@@ -25,7 +31,9 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
   const visible = status === "loading-engine" || status === "exporting";
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const focusAnchorRef = useRef<HTMLDivElement | null>(null);
+  const activeStepIndex = exportSteps.findIndex((step) => step.status === status);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const isLoading = status === "loading-engine";
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -76,8 +84,6 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
 
   if (!visible) return null;
 
-  const isLoading = status === "loading-engine";
-
   return (
     <FocusTrap
       active={visible}
@@ -114,10 +120,10 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
           </div>
           <div className="export-text">
             <h2 className="font-heading font-bold text-xl tracking-tight text-[var(--text)]">
-              {isLoading ? "Loading engine" : "Exporting"}
+              {status === "loading-engine" ? "Loading engine" : "Exporting"}
             </h2>
             <p className="text-sm text-[var(--muted)] mt-1">
-              {isLoading
+              {status === "loading-engine"
                 ? "Downloading the video engine. This only happens once."
                 : "Processing your video locally."}
             </p>
@@ -158,12 +164,10 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
                 >
                   Cancel Export
                 </button>
-                <p className="text-[var(--text)] text-xs">
-                  Press Escape to cancel
-                </p>
+                <p className="text-xs text-gray-500">Press Escape to cancel</p>
               </div>
-              )}
-            </div>
+            )}
+          </div>
         </div>
       </div>
     </FocusTrap>
