@@ -28,12 +28,13 @@ function formatElapsed(ms: number): string {
 }
 
 export default function ExportOverlay({ status, progress, exportStartedAt, onCancel }: Props) {
-  const visible = status === "loading-engine" || status === "exporting";
+  const [displayStatus, setDisplayStatus] = useState<ExportStatus>(status);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const focusAnchorRef = useRef<HTMLDivElement | null>(null);
-  const activeStepIndex = exportSteps.findIndex((step) => step.status === status);
+  const visible = displayStatus === "loading-engine" || displayStatus === "exporting" || displayStatus === "done";
+  const activeStepIndex = exportSteps.findIndex((step) => step.status === displayStatus);
   const [elapsedMs, setElapsedMs] = useState(0);
-  const isLoading = status === "loading-engine";
+  const isLoading = displayStatus === "loading-engine";
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -62,13 +63,25 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
   }, [visible, handleKeyDown]);
 
   useEffect(() => {
+    if (status === "done") {
+      setDisplayStatus("done");
+      const timer = window.setTimeout(() => {
+        setDisplayStatus("idle");
+      }, 1200);
+      return () => window.clearTimeout(timer);
+    }
+
+    setDisplayStatus(status);
+  }, [status]);
+
+  useEffect(() => {
     if (!visible && previousFocusRef.current) {
       previousFocusRef.current.focus();
     }
   }, [visible]);
 
   useEffect(() => {
-    if (status !== "exporting" || !exportStartedAt) {
+    if (displayStatus !== "exporting" || !exportStartedAt) {
       setElapsedMs(0);
       return;
     }
@@ -80,7 +93,7 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
     updateElapsed();
     const timer = window.setInterval(updateElapsed, 1000);
     return () => window.clearInterval(timer);
-  }, [status, exportStartedAt]);
+  }, [displayStatus, exportStartedAt]);
 
   if (!visible) return null;
 
@@ -119,12 +132,46 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
             />
           </div>
           <div className="export-text">
+            <div className="flex items-center justify-center gap-2 text-[10px] font-heading font-semibold uppercase tracking-[0.28em] text-[var(--muted)] mb-4">
+              {exportSteps.map((step, index) => {
+                const isActive = index === activeStepIndex;
+                const isComplete = displayStatus === "done" || index < activeStepIndex;
+
+                return (
+                  <div
+                    key={step.status}
+                    className={[
+                      "flex items-center gap-2 transform transition-all duration-300",
+                      isActive ? "text-[var(--text)] scale-105" : "text-[var(--muted)] scale-100",
+                    ].join(" ")}
+                    aria-current={isActive ? "step" : undefined}
+                  >
+                    <span
+                      className={[
+                        "inline-flex h-6 min-w-6 items-center justify-center rounded-full border px-2 transition-all duration-300",
+                        isComplete
+                          ? "border-film-600 bg-film-600 text-white"
+                          : isActive
+                          ? "border-[var(--text)] bg-[var(--surface)] text-[var(--text)] ring-2 ring-film-600 ring-offset-2 ring-offset-[var(--bg)] animate-pulse scale-110 shadow-lg"
+                          : "border-[var(--border)] bg-[var(--surface)] text-[var(--muted)]",
+                      ].join(" ")}
+                    >
+                      {isComplete ? "✓" : index + 1}
+                    </span>
+                    <span className={isActive ? "font-semibold  animate-pulse scale-97" : undefined}>{step.label}</span>
+                    {index < exportSteps.length - 1 && <span className="text-[var(--border)]">/</span>}
+                  </div>
+                );
+              })}
+            </div>
             <h2 className="font-heading font-bold text-xl tracking-tight text-[var(--text)]">
-              {status === "loading-engine" ? "Loading engine" : "Exporting"}
+              {displayStatus === "loading-engine" ? "Loading engine" : displayStatus === "done" ? "Done" : "Exporting"}
             </h2>
             <p className="text-sm text-[var(--muted)] mt-1">
-              {status === "loading-engine"
+              {displayStatus === "loading-engine"
                 ? "Downloading the video engine. This only happens once."
+                : displayStatus === "done"
+                ? "Export complete. Your video is ready to download."
                 : "Processing your video locally."}
             </p>
             <p className="text-xs font-heading font-semibold text-film-600 mt-2 uppercase tracking-wide">
@@ -132,8 +179,10 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
             </p>
           </div>
           <span className="sr-only">
-            {status === "loading-engine"
+            {displayStatus === "loading-engine"
               ? `Loading video engine: ${progress}%`
+              : displayStatus === "done"
+              ? "Export complete"
               : `Exporting: ${progress}%, ${formatElapsed(elapsedMs)} elapsed`}
           </span>
             <div className="w-full space-y-2">
@@ -143,7 +192,7 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
                   aria-valuenow={progress}
                   aria-valuemin={0}
                   aria-valuemax={100}
-                  aria-label={isLoading ? "Engine download progress" : "Export progress"}
+                  aria-label={isLoading ? "Engine download progress" : displayStatus === "done" ? "Export complete" : "Export progress"}
                   className="h-full bg-film-600 rounded-full transition-all duration-300"
                   style={{ width: `${progress}%` }}
                 />
@@ -151,7 +200,7 @@ export default function ExportOverlay({ status, progress, exportStartedAt, onCan
               <div className="flex items-center justify-between gap-4 text-xs font-heading font-semibold text-[var(--muted)]">
                 <span>{progress}%</span>
                 {!isLoading && (
-                  <span>{formatElapsed(elapsedMs)} elapsed</span>
+                  <span>{displayStatus === "done" ? "Complete" : `${formatElapsed(elapsedMs)} elapsed`}</span>
                 )}
               </div>
               <TipCarousel />
